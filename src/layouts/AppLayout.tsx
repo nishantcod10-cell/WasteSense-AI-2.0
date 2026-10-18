@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Outlet, NavLink, useLocation, Link } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -20,24 +20,37 @@ import {
   Leaf,
   Database,
   Sliders,
+  Store,
+  Camera,
+  Clock,
+  AlertTriangle,
+  LogOut,
+  Building2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '../utils/cn';
 import { storage } from '../services/storage';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NavItem {
   name: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
+  badge?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { name: 'Dashboard', path: '/app', icon: LayoutDashboard, exact: true },
+  { name: 'Digital Twin', path: '/app/digital-twin', icon: Store, badge: 'NEW' },
   { name: 'Inventory', path: '/app/inventory', icon: Package },
+  { name: 'Vision Intake', path: '/app/vision', icon: Camera, badge: 'NEW' },
   { name: 'Predictions', path: '/app/predictions', icon: Brain },
+  { name: 'Rescue Clock', path: '/app/rescue-clock', icon: Clock, badge: 'NEW' },
   { name: 'Action Center', path: '/app/actions', icon: Zap },
+  { name: 'Alerts', path: '/app/alerts', icon: AlertTriangle },
   { name: 'Donations', path: '/app/donations', icon: Heart },
+  { name: 'Store Network', path: '/app/stores', icon: Building2, badge: 'NEW' },
   { name: 'Simulator', path: '/app/simulator', icon: FlaskConical },
   { name: 'Impact', path: '/app/impact', icon: BarChart3 },
   { name: 'Settings', path: '/app/settings', icon: Settings },
@@ -46,7 +59,7 @@ const NAV_ITEMS: NavItem[] = [
 const MOBILE_BOTTOM_NAV = [
   { name: 'Dashboard', path: '/app', icon: LayoutDashboard, exact: true },
   { name: 'Inventory', path: '/app/inventory', icon: Package },
-  { name: 'Predictions', path: '/app/predictions', icon: Brain },
+  { name: 'Twin', path: '/app/digital-twin', icon: Store },
   { name: 'Actions', path: '/app/actions', icon: Zap },
   { name: 'Impact', path: '/app/impact', icon: BarChart3 },
 ];
@@ -58,6 +71,8 @@ export default function AppLayout() {
   const [hasNotificationDot, setHasNotificationDot] = useState<boolean>(true);
   const [settings, setSettings] = useState(() => storage.getSettings());
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   // Keep settings synchronized
   useEffect(() => {
@@ -266,7 +281,14 @@ export default function AppLayout() {
                       />
 
                       {!collapsed && (
-                        <span className="truncate whitespace-nowrap">{item.name}</span>
+                        <>
+                          <span className="truncate whitespace-nowrap">{item.name}</span>
+                          {item.badge && (
+                            <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#235A43] text-white">
+                              {item.badge}
+                            </span>
+                          )}
+                        </>
                       )}
                     </NavLink>
 
@@ -354,7 +376,12 @@ export default function AppLayout() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search inventory, SKUs, actions..."
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && searchQuery.trim()) {
+                      navigate(`/app/inventory?q=${encodeURIComponent(searchQuery.trim())}`);
+                    }
+                  }}
+                  placeholder="Search inventory, SKUs... (Enter)"
                   className="w-full pl-9 pr-3 py-1.5 bg-[#FAF9F4] border border-[#D4DFCE] rounded-xl text-xs sm:text-sm text-[#17231B] placeholder-[#778178] focus:outline-none focus:border-[#245B38] focus:ring-1 focus:ring-[#245B38]/30 transition-all"
                 />
               </div>
@@ -379,10 +406,13 @@ export default function AppLayout() {
               {/* Notification Bell with indicator */}
               <button
                 type="button"
-                onClick={() => setHasNotificationDot(false)}
+                onClick={() => {
+                  setHasNotificationDot(false);
+                  navigate('/app/alerts');
+                }}
                 className="relative p-2 rounded-xl text-[#58645A] hover:text-[#17231B] hover:bg-[#EEF3E8] transition-colors"
-                aria-label="Notifications"
-                title="Notifications"
+                aria-label="Alert Center"
+                title="Alert Center"
               >
                 <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
                 {hasNotificationDot && (
@@ -390,14 +420,26 @@ export default function AppLayout() {
                 )}
               </button>
 
-              {/* User Avatar Initials 'WS' */}
-              <div className="flex items-center gap-2 pl-1 border-l border-[#E7E4DA]">
+              {/* User Avatar + Logout */}
+              <div className="flex items-center gap-2 pl-2 border-l border-[#E7E4DA]">
                 <div
                   className="w-8 h-8 rounded-full bg-[#245B38] text-white font-bold text-xs flex items-center justify-center shadow-xs select-none ring-2 ring-[#245B38]/20"
-                  title="WasteSense Supervisor"
+                  title={user?.name || 'User'}
                 >
-                  WS
+                  {user?.name ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'WS'}
                 </div>
+                <div className="hidden sm:block">
+                  <p className="text-xs font-medium" style={{ color: '#192820' }}>{user?.name || 'User'}</p>
+                  <p className="text-[10px]" style={{ color: '#63716A' }}>{user?.role?.replace('_', ' ')}</p>
+                </div>
+                <button
+                  onClick={() => { logout(); navigate('/login'); }}
+                  className="p-1.5 rounded-lg hover:bg-[#F0EDE5] transition-colors"
+                  aria-label="Sign out"
+                  title="Sign out"
+                >
+                  <LogOut className="w-4 h-4" style={{ color: '#63716A' }} />
+                </button>
               </div>
             </div>
           </header>

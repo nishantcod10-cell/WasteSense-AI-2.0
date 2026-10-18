@@ -45,7 +45,7 @@ export function simulateScenario(
   let projectedSales = 0;
   if (daysRemaining > 0) {
     const boostedDailyDemand = (forecast.forecastDemand / Math.max(1, daysRemaining)) * demandUpliftRatio;
-    const effectiveSellDays = Math.min(daysRemaining, input.targetSellThroughDays || daysRemaining);
+    const effectiveSellDays = Math.min(daysRemaining, input.targetSellThroughDays ?? daysRemaining);
     const calculatedSales = Math.round(boostedDailyDemand * effectiveSellDays);
     projectedSales = Math.min(availableForSale, calculatedSales);
   } else {

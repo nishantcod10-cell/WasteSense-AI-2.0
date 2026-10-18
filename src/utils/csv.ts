@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import { isValid, parseISO } from 'date-fns';
+import { isValid, parseISO, addDays, format } from 'date-fns';
 import type {
   InventoryItem,
   CSVValidationResult,
@@ -86,11 +86,30 @@ export function validateCSV(file: File): Promise<CSVValidationResult> {
           const rowNumber = index + 2; // 1-indexed, accounting for header row
           let rowIsValid = true;
 
-          // Normalize row keys
-          const normalizedRow: Record<string, any> = {};
-          for (const key of Object.keys(row)) {
-            normalizedRow[key.trim()] = row[key];
+          // Normalize row keys - case-insensitive and whitespace/separator stripped
+          const rawKeys = Object.keys(row);
+          const rawNorm: Record<string, any> = {};
+          for (const key of rawKeys) {
+            const cleanKey = key.trim().toLowerCase().replace(/[\s_-]/g, '');
+            rawNorm[cleanKey] = row[key];
           }
+
+          const normalizedRow: Record<string, any> = {
+            ...row,
+            name: rawNorm.name ?? rawNorm.productname ?? rawNorm.title ?? row.name,
+            sku: rawNorm.sku ?? rawNorm.skucode ?? rawNorm.barcode ?? rawNorm.id ?? row.sku,
+            category: rawNorm.category ?? rawNorm.department ?? row.category,
+            quantity: rawNorm.quantity ?? rawNorm.qty ?? rawNorm.stock ?? rawNorm.units ?? row.quantity,
+            expiryDate: rawNorm.expirydate ?? rawNorm.expirationdate ?? rawNorm.expiry ?? rawNorm.bestbefore ?? row.expiryDate,
+            costPerUnit: rawNorm.costperunit ?? rawNorm.cost ?? rawNorm.unitcost ?? row.costPerUnit,
+            sellingPrice: rawNorm.sellingprice ?? rawNorm.price ?? rawNorm.retailprice ?? row.sellingPrice,
+            unit: rawNorm.unit ?? rawNorm.measurementunit ?? row.unit ?? 'units',
+            salesHistory: rawNorm.saleshistory ?? rawNorm.history ?? row.salesHistory,
+            avgDailySales: rawNorm.avgdailysales ?? rawNorm.dailysales ?? rawNorm.velocity ?? row.avgDailySales,
+            storageType: rawNorm.storagetype ?? rawNorm.storage ?? row.storageType,
+            qualityStatus: rawNorm.qualitystatus ?? rawNorm.quality ?? rawNorm.status ?? row.qualityStatus,
+            batchId: rawNorm.batchid ?? rawNorm.batch ?? row.batchId,
+          };
 
           // Check Name
           if (!normalizedRow.name || !String(normalizedRow.name).trim()) {
@@ -182,7 +201,31 @@ export function validateCSV(file: File): Promise<CSVValidationResult> {
 export function parseCSVToInventory(rows: Record<string, any>[]): InventoryItem[] {
   const timestamp = new Date().toISOString();
 
-  return rows.map((row, idx) => {
+  return rows.map((rawRow, idx) => {
+    const rawKeys = Object.keys(rawRow);
+    const rawNorm: Record<string, any> = {};
+    for (const key of rawKeys) {
+      const cleanKey = key.trim().toLowerCase().replace(/[\s_-]/g, '');
+      rawNorm[cleanKey] = rawRow[key];
+    }
+
+    const row: Record<string, any> = {
+      ...rawRow,
+      name: rawNorm.name ?? rawNorm.productname ?? rawNorm.title ?? rawRow.name,
+      sku: rawNorm.sku ?? rawNorm.skucode ?? rawNorm.barcode ?? rawNorm.id ?? rawRow.sku,
+      category: rawNorm.category ?? rawNorm.department ?? rawRow.category,
+      quantity: rawNorm.quantity ?? rawNorm.qty ?? rawNorm.stock ?? rawNorm.units ?? rawRow.quantity,
+      expiryDate: rawNorm.expirydate ?? rawNorm.expirationdate ?? rawNorm.expiry ?? rawNorm.bestbefore ?? rawRow.expiryDate,
+      costPerUnit: rawNorm.costperunit ?? rawNorm.cost ?? rawNorm.unitcost ?? rawRow.costPerUnit,
+      sellingPrice: rawNorm.sellingprice ?? rawNorm.price ?? rawNorm.retailprice ?? rawRow.sellingPrice,
+      unit: rawNorm.unit ?? rawNorm.measurementunit ?? rawRow.unit ?? 'units',
+      salesHistory: rawNorm.saleshistory ?? rawNorm.history ?? rawRow.salesHistory,
+      avgDailySales: rawNorm.avgdailysales ?? rawNorm.dailysales ?? rawNorm.velocity ?? rawRow.avgDailySales,
+      storageType: rawNorm.storagetype ?? rawNorm.storage ?? rawRow.storageType,
+      qualityStatus: rawNorm.qualitystatus ?? rawNorm.quality ?? rawNorm.status ?? rawRow.qualityStatus,
+      batchId: rawNorm.batchid ?? rawNorm.batch ?? rawRow.batchId,
+    };
+
     const sku = String(row.sku || `SKU-${idx + 1}`).trim();
     const costPerUnit = Number(row.costPerUnit) || 0;
     const sellingPrice = Number(row.sellingPrice) || costPerUnit * 1.3;
@@ -314,6 +357,8 @@ export function downloadCSV(content: string, filename: string): void {
  * Returns a ready-to-use sample CSV string with 5 realistic demonstration rows
  */
 export function generateSampleCSV(): string {
+  const getOffsetDate = (offset: number) => format(addDays(new Date(), offset), 'yyyy-MM-dd');
+
   const sampleData = [
     {
       name: 'Organic Cavendish Bananas',
@@ -321,7 +366,7 @@ export function generateSampleCSV(): string {
       category: 'Fresh Produce',
       quantity: 50,
       unit: 'kg',
-      expiryDate: '2026-10-14',
+      expiryDate: getOffsetDate(2),
       costPerUnit: 35,
       sellingPrice: 55,
       avgDailySales: 15,
@@ -337,7 +382,7 @@ export function generateSampleCSV(): string {
       category: 'Dairy & Eggs',
       quantity: 40,
       unit: 'units',
-      expiryDate: '2026-10-13',
+      expiryDate: getOffsetDate(3),
       costPerUnit: 62,
       sellingPrice: 78,
       avgDailySales: 22,
@@ -353,7 +398,7 @@ export function generateSampleCSV(): string {
       category: 'Bakery',
       quantity: 20,
       unit: 'units',
-      expiryDate: '2026-10-12',
+      expiryDate: getOffsetDate(1),
       costPerUnit: 55,
       sellingPrice: 95,
       avgDailySales: 8,
@@ -369,7 +414,7 @@ export function generateSampleCSV(): string {
       category: 'Meat & Seafood',
       quantity: 25,
       unit: 'kg',
-      expiryDate: '2026-10-13',
+      expiryDate: getOffsetDate(2),
       costPerUnit: 240,
       sellingPrice: 340,
       avgDailySales: 10,
@@ -385,7 +430,7 @@ export function generateSampleCSV(): string {
       category: 'Pantry & Dry Goods',
       quantity: 80,
       unit: 'units',
-      expiryDate: '2027-04-30',
+      expiryDate: getOffsetDate(90),
       costPerUnit: 68,
       sellingPrice: 120,
       avgDailySales: 5,

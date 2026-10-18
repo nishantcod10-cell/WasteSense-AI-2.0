@@ -255,15 +255,25 @@ export function analyzeInventory(items: InventoryItem[], settings?: AppSettings)
     const expectedSurplus = calculateExpectedSurplus(item.quantity, totalForecastDemand);
     const financialExposure = Number((expectedSurplus * item.costPerUnit).toFixed(2));
 
-    const isExpired = usableDays === 0;
+    // Check if truly past expiry date (not just safety-buffer exhausted)
+    const trueExpiry = startOfDay(parseISO(item.expiryDate));
+    const today = startOfDay(new Date());
+    const isTrulyExpired = differenceInDays(trueExpiry, today) <= 0;
+    
     let riskLevel: RiskLevel;
     let riskScore: number;
     let riskFactors: string[];
 
-    if (isExpired) {
+    if (isTrulyExpired) {
       riskLevel = 'expired';
       riskScore = 100;
       riskFactors = ['Item has expired'];
+    } else if (usableDays === 0) {
+      // Within safety buffer but not yet expired - treat as critical, not expired
+      const calculated = calculateRiskScore(item, item.quantity, 0, 0.4, weights);
+      riskScore = Math.max(calculated.score, 90); // Minimum 90 for safety-buffer items
+      riskFactors = [...calculated.factors, 'Within safety buffer period — no usable selling days remain'];
+      riskLevel = 'critical';
     } else {
       const calculated = calculateRiskScore(item, expectedSurplus, usableDays, confidence, weights);
       riskScore = calculated.score;

@@ -5,8 +5,10 @@ import type { RiskLevel, ActionType } from '../types/index.ts';
  * Format numeric value as currency (default: INR)
  */
 export function formatCurrency(amount: number, currency: string = 'INR'): string {
+  const getSymbol = (c: string) => (c === 'INR' ? '₹' : c === 'EUR' ? '€' : c === 'GBP' ? '£' : '$');
+
   if (amount === undefined || amount === null || isNaN(amount)) {
-    return '₹0.00';
+    return `${getSymbol(currency)}0.00`;
   }
 
   try {
@@ -18,7 +20,7 @@ export function formatCurrency(amount: number, currency: string = 'INR'): string
       minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
     }).format(amount);
   } catch {
-    const symbol = currency === 'INR' ? '₹' : '$';
+    const symbol = getSymbol(currency);
     return `${symbol}${amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
   }
 }
@@ -36,11 +38,10 @@ export function formatNumber(n: number): string {
 /**
  * Format ratio or percentage value
  */
-export function formatPercent(n: number, decimals: number = 0): string {
+export function formatPercent(n: number, decimals: number = 0, isFraction?: boolean): string {
   if (n === undefined || n === null || isNaN(n)) return '0%';
-  // If n is between 0 and 1 (exclusive), check if it represents a decimal fraction or already percentage
-  // By standard convention, if value <= 1 and > 0, callers might pass 0.35 or 35.
-  return `${n.toFixed(decimals)}%`;
+  const val = isFraction || (n > 0 && n <= 1 && decimals === 0) ? n * 100 : n;
+  return `${val.toFixed(decimals)}%`;
 }
 
 /**

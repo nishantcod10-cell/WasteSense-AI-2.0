@@ -349,4 +349,146 @@ describe('Impact Metrics & Data Persistence', () => {
     expect(demoItems.some((i) => i.category === 'Meat & Seafood')).toBe(true);
     expect(demoItems.some((i) => i.isDemo === true)).toBe(true);
   });
+
+  it('safely routes compromised food items to remove action and forbids markdown promotion', () => {
+    const compromisedItem: InventoryItem = {
+      id: 'test-compromised-01',
+      name: 'Damaged Organic Oil',
+      sku: 'OIL-COMP-01',
+      category: 'Pantry & Dry Goods',
+      quantity: 20,
+      unit: 'units',
+      expiryDate: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0],
+      avgDailySales: 5,
+      salesHistory: [5, 5, 5, 5, 5],
+      costPerUnit: 100,
+      sellingPrice: 150,
+      leadTimeDays: 1,
+      storageType: 'ambient',
+      lastUpdated: new Date().toISOString(),
+      batchId: 'BATCH-OIL-X',
+      qualityStatus: 'compromised',
+    };
+
+    const forecasts = analyzeInventory([compromisedItem], DEFAULT_SETTINGS);
+    const recs = generateRecommendations(forecasts, [compromisedItem], DEFAULT_SETTINGS);
+
+    expect(recs.length).toBeGreaterThan(0);
+    const action = recs[0];
+    expect(action.actionType).toBe('remove');
+    expect(action.reason).toContain('compromised');
+    // Must NOT be markdown or donation
+    expect(recs.some((r) => r.actionType === 'markdown')).toBe(false);
+    expect(recs.some((r) => r.actionType === 'donation')).toBe(false);
+  });
+
+  it('rejects donation eligibility for malformed or invalid expiry dates', () => {
+    const badDateItem: InventoryItem = {
+      id: 'test-bad-date',
+      name: 'Unsafe Item',
+      sku: 'BAD-DATE-01',
+      category: 'Fresh Produce',
+      quantity: 10,
+      unit: 'kg',
+      expiryDate: 'invalid-not-a-date',
+      avgDailySales: 2,
+      salesHistory: [2, 2],
+      costPerUnit: 20,
+      sellingPrice: 30,
+      leadTimeDays: 1,
+      storageType: 'ambient',
+      lastUpdated: new Date().toISOString(),
+      batchId: 'BATCH-BAD-01',
+      qualityStatus: 'good',
+    };
+
+    const result = validateDonationEligibility(badDateItem, DEFAULT_SETTINGS);
+    expect(result.eligible).toBe(false);
+    expect(result.reason).toContain('Invalid or missing expiration date');
+  });
+
+  it('handles safety buffer boundary correctly without falsely flagging as expired', () => {
+    // 1 day remaining with 1-day safety buffer -> usableDays = 0, but NOT truly expired
+    const tomorrow = new Date(Date.now() + 86400000 * 1).toISOString().split('T')[0];
+    const boundaryItem: InventoryItem = {
+      id: 'test-boundary-01',
+      name: 'Tomorrow Milk',
+      sku: 'DAIR-TOM-01',
+      category: 'Dairy & Eggs',
+      quantity: 15,
+      unit: 'units',
+      expiryDate: tomorrow,
+      avgDailySales: 5,
+      salesHistory: [5, 5, 5, 5, 5, 5, 5],
+      costPerUnit: 40,
+      sellingPrice: 60,
+      leadTimeDays: 1,
+      storageType: 'refrigerated',
+      lastUpdated: new Date().toISOString(),
+      batchId: 'BATCH-TOM-01',
+      qualityStatus: 'good',
+    };
+
+    const forecasts = analyzeInventory([boundaryItem], { ...DEFAULT_SETTINGS, safetyBufferDays: 1 });
+    expect(forecasts[0].riskLevel).toBe('critical'); // Critical, NOT expired
+    expect(forecasts[0].riskFactors).toContain(
+      'Within safety buffer period — no usable selling days remain'
+    );
+  });
+
+  it('properly normalizes CSV rows with Title Case and mixed capitalization headers', () => {
+    const rawCsvRows = [
+      {
+        Name: 'Alphonso Mangoes',
+        SKU: 'MNG-001',
+        Category: 'Fresh Produce',
+        Quantity: '50',
+        ExpiryDate: '2026-10-30',
+        CostPerUnit: '120',
+        SellingPrice: '200',
+        Unit: 'kg',
+      },
+    ];
+
+    const parsed = parseCSVToInventory(rawCsvRows);
+    expect(parsed.length).toBe(1);
+    expect(parsed[0].name).toBe('Alphonso Mangoes');
+    expect(parsed[0].sku).toBe('MNG-001');
+    expect(parsed[0].category).toBe('Fresh Produce');
+    expect(parsed[0].quantity).toBe(50);
+    expect(parsed[0].costPerUnit).toBe(120);
+    expect(parsed[0].sellingPrice).toBe(200);
+    expect(parsed[0].expiryDate).toBe('2026-10-30');
+  });
+
+  it('handles targetSellThroughDays = 0 correctly in scenario simulator without falsy fallback', () => {
+    const item: InventoryItem = {
+      id: 'test-sim-0',
+      name: 'Sim Item',
+      sku: 'SIM-01',
+      category: 'Bakery',
+      quantity: 50,
+      unit: 'units',
+      expiryDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
+      avgDailySales: 10,
+      salesHistory: [10, 10, 10],
+      costPerUnit: 30,
+      sellingPrice: 50,
+      leadTimeDays: 1,
+      storageType: 'ambient',
+      lastUpdated: new Date().toISOString(),
+      batchId: 'BATCH-SIM-01',
+      qualityStatus: 'good',
+    };
+
+    const forecast = analyzeInventory([item], DEFAULT_SETTINGS)[0];
+    const scenario = simulateScenario(item, forecast, {
+      markdownDiscountPercent: 20,
+      donationPortionPercent: 0,
+      priceElasticity: 1.3,
+      targetSellThroughDays: 0, // Explicitly zero days!
+    });
+
+    expect(scenario.projectedSalesQuantity).toBe(0); // 0 days means 0 sales
+  });
 });

@@ -20,6 +20,7 @@ import {
   Leaf,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { HeroOrb3D } from '@/components/3d/HeroOrb3D';
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -290,35 +291,9 @@ export const LandingPage: React.FC = () => {
                   </span>
                 </div>
 
-                {/* Fresh Vegetables Crate Illustration */}
-                <div className="my-5 relative rounded-2xl bg-gradient-to-b from-[#F2F7EE] to-[#E5EFE0] border border-[#D4DFCE] p-5 flex flex-col items-center justify-center overflow-hidden">
-                  {/* Subtle Botanical Leaf Accent */}
-                  <div className="absolute -top-3 -right-3 text-[#245B38]/10 pointer-events-none">
-                    <Leaf className="w-28 h-28 transform rotate-45" />
-                  </div>
-
-                  {/* Produce Graphic Composition */}
-                  <div className="relative z-10 flex items-center justify-center gap-3 py-3">
-                    <div className="w-16 h-16 rounded-2xl bg-white border border-[#D4DFCE] flex flex-col items-center justify-center shadow-xs">
-                      <span className="text-2xl" role="img" aria-label="Fresh Tomato">🍅</span>
-                      <span className="text-[9px] font-bold text-[#58645A] mt-0.5">Produce</span>
-                    </div>
-                    <div className="w-20 h-20 rounded-2xl bg-white border-2 border-[#245B38] flex flex-col items-center justify-center shadow-sm">
-                      <span className="text-3xl" role="img" aria-label="Fresh Avocado">🥑</span>
-                      <span className="text-[10px] font-extrabold text-[#245B38] mt-1">At Risk</span>
-                    </div>
-                    <div className="w-16 h-16 rounded-2xl bg-white border border-[#D4DFCE] flex flex-col items-center justify-center shadow-xs">
-                      <span className="text-2xl" role="img" aria-label="Leafy Greens">🥬</span>
-                      <span className="text-[9px] font-bold text-[#58645A] mt-0.5">Greens</span>
-                    </div>
-                  </div>
-
-                  <p className="text-xs font-semibold text-[#17231B] text-center mt-2">
-                    Batch #ROMA-402 &bull; Farm Fresh Selection
-                  </p>
-                  <p className="text-[11px] text-[#58645A] text-center">
-                    Storage: Ambient Crate &bull; Quality: Good
-                  </p>
+                {/* 3D Hero Orb — replaces static emoji illustration */}
+                <div className="my-4 relative rounded-2xl overflow-hidden" style={{ height: '240px' }}>
+                  <HeroOrb3D />
                 </div>
 
                 {/* Floating Card 1: Waste Risk Notice */}

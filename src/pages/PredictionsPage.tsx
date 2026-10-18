@@ -340,7 +340,7 @@ export default function PredictionsPage() {
     storage.setActions(recs);
 
     // Navigate to actions page with highlight
-    navigate('/actions', { state: { highlightProductId: forecast.productId } });
+    navigate('/app/actions', { state: { highlightProductId: forecast.productId } });
   };
 
   const getRiskScoreBar = (score: number) => {

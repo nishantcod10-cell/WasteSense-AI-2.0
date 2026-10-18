@@ -118,8 +118,12 @@ export const storage = {
 
   isInitialized(): boolean {
     if (typeof window === 'undefined' || !window.localStorage) return false;
-    const inv = window.localStorage.getItem(KEYS.inventory);
-    return inv !== null && inv !== '[]';
+    return window.localStorage.getItem(`${STORAGE_VERSION}_initialized`) === 'true';
+  },
+
+  markInitialized(): void {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    window.localStorage.setItem(`${STORAGE_VERSION}_initialized`, 'true');
   },
 
   resetToDemo(): void {
@@ -132,6 +136,7 @@ export const storage = {
     this.setActions([]);
     this.setDonationOffers([]);
     this.setForecasts([]);
+    this.markInitialized();
   },
 };
 

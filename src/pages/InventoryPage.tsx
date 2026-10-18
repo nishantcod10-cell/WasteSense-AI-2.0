@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -98,9 +99,18 @@ interface ToastNotification {
 }
 
 export default function InventoryPage() {
+  const [searchParams] = useSearchParams();
+  const urlQ = searchParams.get('q');
+
   const [items, setItems] = useState<InventoryItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(urlQ || '');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
+
+  useEffect(() => {
+    if (urlQ !== null) {
+      setSearchQuery(urlQ);
+    }
+  }, [urlQ]);
   const [riskFilter, setRiskFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<'name' | 'expiry' | 'quantity' | 'value' | 'risk'>('expiry');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');

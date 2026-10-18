@@ -1,4 +1,5 @@
 import { InventoryItem, AppSettings, DonationPartner } from '../../types';
+import { differenceInDays, parseISO, startOfDay, isValid } from 'date-fns';
 
 /**
  * Validates whether an inventory item meets food safety and logistics criteria for food donation.
@@ -22,11 +23,18 @@ export function validateDonationEligibility(
     };
   }
 
-  // Shelf-life remaining check
-  const now = new Date();
-  const expiry = new Date(item.expiryDate);
-  const diffTime = expiry.getTime() - now.getTime();
-  const daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+  // Validate expiry date
+  const expiry = parseISO(item.expiryDate);
+  if (!isValid(expiry)) {
+    return {
+      eligible: false,
+      reason: 'Invalid or missing expiration date; cannot verify food safety.',
+    };
+  }
+
+  // Shelf-life remaining check (using date-fns for consistency)
+  const today = startOfDay(new Date());
+  const daysRemaining = Math.max(0, differenceInDays(startOfDay(expiry), today));
 
   const minEligibilityDays = settings.donationEligibilityDays || 2;
   if (daysRemaining < minEligibilityDays) {

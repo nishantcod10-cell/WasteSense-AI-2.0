@@ -200,6 +200,29 @@ export function generateRecommendations(
       continue;
     }
 
+    // Case 3b: Compromised quality -> must remove (do NOT offer for sale or donation)
+    if (item.qualityStatus === 'compromised') {
+      recommendations.push({
+        id: `rec-rem-${item.id}-${Date.now().toString(36)}`,
+        productId: item.id,
+        batchId: item.batchId,
+        productName: item.name,
+        riskLevel: forecast.riskLevel,
+        actionType: 'remove',
+        reason: 'Item quality is compromised. Must be withdrawn from shelves and disposed of safely.',
+        quantity: item.quantity,
+        estimatedRecovery: 0,
+        estimatedWasteAvoided: 0,
+        actionCost: Number((item.quantity * 0.25).toFixed(2)),
+        netBenefit: Number((-item.quantity * 0.25).toFixed(2)),
+        assumptions: ['Compromised quality; not safe for sale or donation; eco-safe disposal required'],
+        status: 'pending',
+        createdAt: now,
+        updatedAt: now,
+      });
+      continue;
+    }
+
     // Case 3: Donation candidate
     // If critical/high surplus and donation eligibility criteria met
     const donationCheck = validateDonationEligibility(item, settings);
